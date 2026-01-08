@@ -71,7 +71,7 @@ export default function Home() {
   const [selectedRegion, setSelectedRegion] = useState<'korea' | 'usa'>('korea');
   
   const [error, setError] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [showSidePanel, setShowSidePanel] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     contentType: 'all',
@@ -139,7 +139,7 @@ export default function Home() {
     setSelectedVideo(video);
     setIsAnalyzing(true);
     setError(null);
-    setSheetOpen(true); // 사이드 패널 열기
+    setShowSidePanel(true); // 사이드 패널 표시
 
     try {
       // 1. 댓글 수집
@@ -237,14 +237,14 @@ export default function Home() {
     setSelectedKeyword(null);
     setScriptOutline(null);
     setError(null);
-    setSheetOpen(false);
+    setShowSidePanel(false);
     setCurrentPage(1);
     setHasMoreVideos(true);
   };
 
   // 사이드 패널 닫기
-  const handleCloseSheet = () => {
-    setSheetOpen(false);
+  const handleCloseSidePanel = () => {
+    setShowSidePanel(false);
     setSelectedVideo(null);
     setAnalysis(null);
     setRecommendations([]);
@@ -353,7 +353,10 @@ export default function Home() {
       </header>
 
       {/* 메인 콘텐츠 */}
-      <main className="container mx-auto px-4 py-6">
+      <div className="relative">
+        <main className={`container mx-auto px-4 py-6 transition-all duration-300 ${
+          showSidePanel ? 'lg:pr-[520px] xl:pr-[620px]' : ''
+        }`}>
 
         {/* 검색 화면 */}
         {videos.length === 0 && (
@@ -549,9 +552,13 @@ export default function Home() {
             </div>
 
             <div className={`grid gap-4 ${
-              gridCols === '3' 
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' 
-                : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
+              showSidePanel
+                ? gridCols === '3'
+                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+                  : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                : gridCols === '3' 
+                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' 
+                  : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
             }`}>
               {videos.map((video) => (
                 <VideoCard 
@@ -592,21 +599,37 @@ export default function Home() {
           </div>
         )}
 
-      </main>
+        </main>
 
-      {/* 분석 결과 사이드 패널 */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>
-              {selectedVideo ? selectedVideo.title : '영상 분석'}
-            </SheetTitle>
-            <SheetDescription>
-              AI 기반 댓글 분석 및 콘텐츠 추천
-            </SheetDescription>
-          </SheetHeader>
+        {/* 분석 결과 사이드 패널 */}
+        <aside className={`
+          fixed right-0 top-16 h-[calc(100vh-4rem)] 
+          w-full sm:w-[480px] lg:w-[500px] xl:w-[600px] 
+          bg-background border-l 
+          transform transition-transform duration-300 ease-in-out
+          ${showSidePanel ? 'translate-x-0' : 'translate-x-full'}
+          overflow-y-auto z-30 shadow-2xl
+        `}>
+            <div className="sticky top-0 bg-background/95 backdrop-blur border-b p-4 flex items-center justify-between">
+              <div className="flex-1 min-w-0 mr-2">
+                <h2 className="text-lg font-semibold line-clamp-1">
+                  {selectedVideo ? selectedVideo.title : '영상 분석'}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  AI 기반 댓글 분석 및 콘텐츠 추천
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleCloseSidePanel}
+                className="h-8 w-8 p-0 flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
 
-          <div className="mt-6">
+            <div className="p-4 sm:p-6">
             {/* 에러 메시지 */}
             {error && (
               <Card className="mb-6 border-destructive/50 bg-destructive/10">
@@ -700,9 +723,17 @@ export default function Home() {
                 </TabsContent>
               </Tabs>
             )}
-          </div>
-        </SheetContent>
-      </Sheet>
+            </div>
+          </aside>
+        
+        {/* 모바일 오버레이 */}
+        {showSidePanel && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+            onClick={handleCloseSidePanel}
+          />
+        )}
+      </div>
 
       {/* 푸터 */}
       <footer className="border-t py-6 mt-auto">
