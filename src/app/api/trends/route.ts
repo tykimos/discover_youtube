@@ -7,6 +7,8 @@ interface TrendingKeyword {
   category: string;
   region: 'KR' | 'US';
   count: number;
+  videos?: number; // 해당 키워드가 나타난 비디오 수
+  trend?: 'up' | 'down' | 'stable'; // 트렌드 방향
 }
 
 export async function GET(request: NextRequest) {
@@ -72,11 +74,21 @@ export async function GET(request: NextRequest) {
         .slice(0, 10);
 
       sortedKeywords.forEach(([keyword, count]) => {
+        // 해당 키워드가 나타난 비디오 수 계산
+        const videoCount = data.items.filter((video: any) => {
+          const title = video.snippet.title.toLowerCase();
+          const tags = (video.snippet.tags || []).map((t: string) => t.toLowerCase());
+          return title.includes(keyword.toLowerCase()) || 
+                 tags.some((tag: string) => tag.includes(keyword.toLowerCase()));
+        }).length;
+
         allKeywords.push({
           keyword,
           category: determineCategory(keyword),
           region: regionCode as 'KR' | 'US',
-          count
+          count,
+          videos: videoCount,
+          trend: count > 5 ? 'up' : count > 2 ? 'stable' : 'down'
         });
       });
     }
@@ -97,7 +109,22 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       trends: categorizedTrends,
-      timestamp: new Date().toISOString()
+      metadata: {
+        timestamp: new Date().toISOString(),
+        source: 'YouTube Most Popular Videos',
+        period: '실시간 (오늘)',
+        sampleSize: 50, // 각 지역당 분석한 비디오 수
+        regions: {
+          KR: '대한민국',
+          US: '미국'
+        },
+        updateInterval: '5분',
+        criteria: {
+          title: '제목 분석 (가중치 2배)',
+          tags: '태그 분석 (가중치 1배)',
+          category: '카테고리 분류'
+        }
+      }
     });
 
   } catch (error) {

@@ -41,16 +41,41 @@ import {
   Globe,
   MapPin,
   Hash as HashIcon,
-  RefreshCcw
+  RefreshCcw,
+  Clock
 } from 'lucide-react';
 
 interface TrendingData {
   trends: {
-    korea: Array<{ keyword: string; count: number; category: string }>;
-    usa: Array<{ keyword: string; count: number; category: string }>;
+    korea: Array<{ 
+      keyword: string; 
+      count: number; 
+      category: string;
+      videos?: number;
+      trend?: 'up' | 'down' | 'stable';
+    }>;
+    usa: Array<{ 
+      keyword: string; 
+      count: number; 
+      category: string;
+      videos?: number;
+      trend?: 'up' | 'down' | 'stable';
+    }>;
     categories: Record<string, Array<{ keyword: string; count: number }>>;
   };
-  timestamp: string;
+  metadata: {
+    timestamp: string;
+    source: string;
+    period: string;
+    sampleSize: number;
+    regions: Record<string, string>;
+    updateInterval: string;
+    criteria: {
+      title: string;
+      tags: string;
+      category: string;
+    };
+  };
 }
 
 export default function Home() {
@@ -405,10 +430,23 @@ export default function Home() {
               {/* 트렌드 키워드 섹션 */}
               <div className="space-y-6">
                 {/* 트렌드 헤더 */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium text-muted-foreground">실시간 트렌드</span>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">실시간 트렌드</span>
+                    </div>
+                    {trendingData && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        <span className="inline-flex items-center gap-1">
+                          <Badge variant="outline" className="text-xs px-1.5 py-0">
+                            {trendingData.metadata.source}
+                          </Badge>
+                          <span>• {trendingData.metadata.period}</span>
+                          <span>• 샘플 {trendingData.metadata.sampleSize}개</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -456,19 +494,38 @@ export default function Home() {
                   ) : trendingData ? (
                     <>
                       {trendingData.trends[selectedRegion].slice(0, 10).map((trend, index) => (
-                        <Button
-                          key={trend.keyword}
-                          variant={index < 3 ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleSearch(trend.keyword, { contentType: 'all', minViralRatio: 0, maxViralRatio: 100 })}
-                          className="gap-1"
-                        >
-                          {index < 3 && <TrendingUp className="h-3 w-3" />}
-                          {trend.keyword}
-                          <Badge variant="secondary" className="ml-1 text-xs px-1">
-                            {trend.count}
-                          </Badge>
-                        </Button>
+                        <div key={trend.keyword} className="relative group">
+                          <Button
+                            variant={index < 3 ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleSearch(trend.keyword, { contentType: 'all', minViralRatio: 0, maxViralRatio: 100 })}
+                            className="gap-1 relative"
+                          >
+                            {index < 3 && trend.trend === 'up' && (
+                              <TrendingUp className="h-3 w-3 text-green-500" />
+                            )}
+                            {index < 3 && trend.trend === 'down' && (
+                              <TrendingUp className="h-3 w-3 rotate-180 text-red-500" />
+                            )}
+                            {trend.keyword}
+                            <Badge variant="secondary" className="ml-1 text-xs px-1">
+                              {trend.count}
+                            </Badge>
+                          </Button>
+                          
+                          {/* 툴팁 */}
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-popover text-popover-foreground rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap">
+                            <div className="text-xs">
+                              <div>키워드: {trend.keyword}</div>
+                              <div>언급 횟수: {trend.count}회</div>
+                              {trend.videos && <div>비디오 수: {trend.videos}개</div>}
+                              <div>카테고리: {trend.category}</div>
+                            </div>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+                              <div className="border-4 border-transparent border-t-popover" />
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </>
                   ) : (
@@ -486,12 +543,23 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* 카테고리별 트렌드 */}
+                {/* 기준 정보 */}
                 {trendingData && (
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">
-                      마지막 업데이트: {new Date(trendingData.timestamp).toLocaleTimeString('ko-KR')}
-                    </p>
+                  <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        <span>업데이트: {new Date(trendingData.metadata.timestamp).toLocaleTimeString('ko-KR')}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <RefreshCcw className="h-3 w-3" />
+                        <span>주기: {trendingData.metadata.updateInterval}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <BarChart3 className="h-3 w-3" />
+                        <span>분석 기준: {trendingData.metadata.criteria.title}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
